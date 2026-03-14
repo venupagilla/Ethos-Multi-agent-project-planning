@@ -21,35 +21,18 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from dotenv import load_dotenv
-
+from agent.config import DATA_DIR, FRONTEND_DIR
+from agent.planner_agent import run_pipeline as _run_pipeline # Corrected import name if it was _run_agent
 from main import run_agent as _run_agent
-
-load_dotenv(override=True)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).parent
-DATA_DIR = BASE_DIR / "data"
-FRONTEND_PATH = BASE_DIR / "frontend" / "index.html"
+FRONTEND_PATH = FRONTEND_DIR / "index.html"
 
 
-# ---------------------------------------------------------------------------
-# Pydantic models
-# ---------------------------------------------------------------------------
-
-class ProjectInput(BaseModel):
-    project_id: str
-    project_name: str
-    description: str
-    required_skills: list[str]
-    deadline_days: int
-    priority: str
-
-
-class EmployeesInput(BaseModel):
-    employees: list[dict]
+from agent.models import ProjectInput, EmployeesInput
 
 
 # ---------------------------------------------------------------------------
@@ -159,17 +142,24 @@ async def run_agent(project: ProjectInput):
         )
         return {
             "success": True,
-            "tasks": result["tasks"],
-            "assignments": result["assignments"],
-            "risk_report": result["risk_report"],
-            "skill_gaps": result["skill_gaps"],
-            "rebalance_log": result["rebalance_log"],
-            "json_path": result["json_path"],
-            "markdown_path": result["markdown_path"],
-            "markdown": result["markdown"],
+            "tasks": result.get("tasks", []),
+            "assignments": result.get("assignments", []),
+            "risk_report": result.get("risk_report", {}),
+            "skill_gaps": result.get("skill_gaps", {}),
+            "rebalance_log": result.get("rebalance_log", []),
+            "json_path": result.get("json_path"),
+            "markdown_path": result.get("markdown_path"),
+            "markdown": result.get("markdown", ""),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error running agent: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, 
+            detail={
+                "error": "Pipeline execution failed",
+                "message": str(e)
+            }
+        )
 
 
 if __name__ == "__main__":

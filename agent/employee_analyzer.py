@@ -13,8 +13,10 @@ Fitness Score Formula (0–100):
 import json
 import os
 from typing import Any
+from agent.utils import normalize_skill
+from agent import config
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "employees.json")
+DATA_PATH = config.DATA_DIR / "employees.json"
 
 
 def load_employees() -> list[dict[str, Any]]:
@@ -34,8 +36,8 @@ def compute_fitness(employee: dict[str, Any], required_skills: list[str]) -> flo
     Returns:
         float fitness score
     """
-    emp_skills_lower = {s.lower() for s in employee["skills"]}
-    req_skills_lower = [s.lower() for s in required_skills]
+    emp_skills_lower = {normalize_skill(s) for s in employee["skills"]}
+    req_skills_lower = [normalize_skill(s) for s in required_skills]
 
     if not req_skills_lower:
         skill_score = 60.0

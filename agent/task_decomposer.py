@@ -13,17 +13,14 @@ from typing import Any
 
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
-from dotenv import load_dotenv
-
-load_dotenv(override=True)
+from agent import config
 
 
 def _get_llm():
-    model = os.getenv("LLM_MODEL", "openai/gpt-4o-mini")
     return ChatGroq(
-        model=model,
+        model=config.LLM_MODEL,
         temperature=0.3,
-        groq_api_key=os.getenv("GROQ_API_KEY"),
+        groq_api_key=config.GROQ_API_KEY,
     )
 
 
@@ -37,6 +34,7 @@ Each task object must have exactly these fields:
 - description: string (1-2 sentences, concrete and actionable)
 - required_skills: list of strings
 - estimated_days: integer (realistic estimate)
+- type: string (must be one of: "devops", "development", "testing", "design")
 - dependencies: list of task_ids that must complete first (empty list if none)
 
 Generate between 5 and 10 tasks. Be practical and realistic."""
@@ -53,6 +51,7 @@ def decompose(project: dict[str, Any]) -> list[dict[str, Any]]:
     Returns:
         List of task dicts
     """
+    import logging
     llm = _get_llm()
 
     user_prompt = f"""Project: {project['project_name']}
@@ -68,15 +67,19 @@ Decompose this project into 5-10 concrete sub-tasks."""
         HumanMessage(content=user_prompt),
     ]
 
-    response = llm.invoke(messages)
-    raw = response.content.strip()
-
-    # Strip markdown code fences if present
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-    raw = raw.strip()
-
-    tasks = json.loads(raw)
-    return tasks
+    try:
+        response = llm.invoke(messages)
+        raw = response.content.strip()
+        logging.info(f"[decompose] LLM raw response: {raw}")
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        raw = raw.strip()
+        tasks = json.loads(raw)
+        logging.info(f"[decompose] Parsed tasks: {tasks}")
+        return tasks
+    except Exception as e:
+        logging.error(f"[decompose] Error during task decomposition: {e}")
+        return []

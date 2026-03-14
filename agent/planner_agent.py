@@ -51,55 +51,55 @@ def run_pipeline(
         }
     """
     from agent.task_decomposer import decompose
-    from agent.employee_analyzer import load_employees, rank_employees_for_task  # noqa
-    from agent.assignment_engine import assign_tasks
+    from agent.employee_analyzer import load_employees
     from agent.features.skill_gap_detector import detect_gaps
     from agent.features.workload_balancer import rebalance
     from agent.features.risk_assessor import assess_risk
     from agent.features.report_generator import generate
+    from agent.super_agent import SuperAgent
 
     _log(verbose, f"\n{'='*60}")
     _log(verbose, f"  NeuraX Project Assignment Agent")
     _log(verbose, f"  Project: {project['project_name']} ({project['project_id']})")
     _log(verbose, f"{'='*60}\n")
 
-    # Step 1: Task Decomposition
-    _log(verbose, "📋 Step 1: Decomposing project into tasks...")
-    tasks = decompose(project)
-    _log(verbose, f"   → Generated {len(tasks)} tasks.")
 
-    # Step 2: Load employees
-    _log(verbose, "👥 Step 2: Loading employee pool...")
+    # Step 1: Task Decomposition (SuperAgent will use this or similar logic)
+    _log(verbose, "📋 Step 1: Decomposing project into tasks and workflow (SuperAgent)...")
     employees = load_employees()
-    _log(verbose, f"   → {len(employees)} employees loaded.")
+    super_agent = SuperAgent(employees)
+    tasks = decompose(project)
+    project["tasks"] = tasks
+    _log(verbose, f"   → Generated {len(tasks)} tasks with types.")
 
-    # Step 3: Skill Gap Detection
-    _log(verbose, "🔍 Step 3: Detecting skill gaps...")
+    # Step 2: Skill Gap Detection (unchanged)
+    _log(verbose, "🔍 Step 2: Detecting skill gaps...")
     skill_gaps = detect_gaps(tasks, employees, project)
     if skill_gaps["has_gaps"]:
         _log(verbose, f"   ⚠️  Gaps found: {skill_gaps['project_level_gaps'] + [g['missing_skills'] for g in skill_gaps['task_level_gaps']]}")
     else:
         _log(verbose, "   ✅ No skill gaps found.")
 
-    # Step 4: Task Assignment
-    _log(verbose, "🎯 Step 4: Assigning tasks to employees...")
-    assignments = assign_tasks(tasks, employees)
+    # Step 3: Multi-Agent Task Assignment
+    _log(verbose, "🤖 Step 3: Assigning tasks using multi-agent system...")
+    assignments = super_agent.run(project)
     assigned_count = sum(1 for a in assignments if a["assigned_employee_id"])
     _log(verbose, f"   → {assigned_count}/{len(assignments)} tasks successfully assigned.")
 
-    # Step 5: Workload Rebalancing
-    _log(verbose, "⚖️  Step 5: Checking workload balance...")
+    # Step 4: Workload Rebalancing (unchanged)
+    _log(verbose, "⚖️  Step 4: Checking workload balance...")
     final_assignments, rebalance_log = rebalance(assignments, employees)
     for entry in rebalance_log:
         _log(verbose, f"   {entry}")
 
-    # Step 6: Risk Assessment
-    _log(verbose, "🔴 Step 6: Assessing project risk...")
+
+    # Step 5: Risk Assessment (unchanged)
+    _log(verbose, "🔴 Step 5: Assessing project risk...")
     risk_report = assess_risk(project, final_assignments)
     _log(verbose, f"   → Overall Risk: {risk_report['overall_risk_level']}")
 
-    # Step 7: Report Generation
-    _log(verbose, "📄 Step 7: Generating reports...")
+    # Step 6: Report Generation (unchanged)
+    _log(verbose, "📄 Step 6: Generating reports...")
     report = generate(project, final_assignments, risk_report, skill_gaps, rebalance_log, output_dir)
     _log(verbose, f"   → JSON:     {report['json_path']}")
     _log(verbose, f"   → Markdown: {report['markdown_path']}")

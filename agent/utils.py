@@ -1,0 +1,41 @@
+"""
+utils.py
+--------
+Shared utility functions for the NeuraX agents.
+"""
+
+# Synonym mapping for skill normalization (shared with other agents)
+SKILL_SYNONYMS = {
+    "ml": "machine learning",
+    "ai": "artificial intelligence",
+    "llms": "large language models",
+    "ci/cd": "cicd",
+    "pythontensorflow": "pytorch/tensorflow",
+    "nlp": "natural language processing",
+    "ui/ux": "uiux",
+    "reactjs": "react",
+    "data analysis": "data analytics",
+    "apis": "api",
+    "databases": "database",
+}
+
+def normalize_skill(skill: str) -> str:
+    """Normalize a skill string for better matching."""
+    s = skill.lower().replace(" ", "").replace("-", "")
+    return SKILL_SYNONYMS.get(s, s)
+
+def compute_skill_match_ratio(employee_skills: list[str], required_skills: list[str]) -> tuple[float, set[str]]:
+    """Compute the ratio of matched skills and return the overlapping skills."""
+    emp = set(normalize_skill(s) for s in employee_skills)
+    req = set(normalize_skill(s) for s in required_skills)
+    if not req:
+        return 1.0, set()
+    overlap = emp & req
+    return len(overlap) / len(req), overlap
+
+def compute_workload_increment(estimated_days: float) -> float:
+    """
+    Calculate workload increment based on estimated days.
+    Assuming a standard capacity where 1 day = 5% workload.
+    """
+    return round(float(estimated_days) * 5.0, 1)

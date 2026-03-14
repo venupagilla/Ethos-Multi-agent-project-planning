@@ -20,15 +20,11 @@ Usage:
 
 import argparse
 import json
-import os
 import sys
+from agent import config
+from agent.models import ProjectInput
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
-
-DATA_PROJECTS_PATH = os.path.join(os.path.dirname(__file__), "data", "projects.json")
+DATA_PROJECTS_PATH = config.DATA_DIR / "projects.json"
 
 
 def run_agent(project: dict, output_dir: str = "output", verbose: bool = True) -> dict:
@@ -80,14 +76,18 @@ def main():
 
     args = parser.parse_args()
 
-    # Load project
+    # Load and validate project
     if args.id:
-        project = _load_project_by_id(args.id)
+        project_dict = _load_project_by_id(args.id)
     elif args.file:
         with open(args.file, "r", encoding="utf-8") as f:
-            project = json.load(f)
+            project_dict = json.load(f)
     else:
-        project = json.loads(args.json)
+        project_dict = json.loads(args.json)
+    
+    # Validate with Pydantic
+    project_model = ProjectInput(**project_dict)
+    project = project_model.model_dump()
 
     # Run pipeline
     result = run_agent(project, output_dir=args.output, verbose=not args.quiet)

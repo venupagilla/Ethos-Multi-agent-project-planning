@@ -186,7 +186,7 @@ if run_agent:
                     user_name = emp_info["name"] or emp_id
                     email_payload.append({
                         "email": emp_info["email"],
-                        "body":  f"Hello {user_name}, here is your project update",
+                        "body":  f"Hello {user_name}, you've been assigned the task '{a['task_title']}' for project {project_name}.\n\nTask Description: {a.get('task_description', 'N/A')}",
                     })
 
             # ----------------------------------------------------------------
@@ -246,6 +246,7 @@ if run_agent:
                     "Fit Score":  a["fitness_score"],
                     "Est. Days":  a["estimated_days"],
                     "WL After":   a.get("workload_after_assignment", "—"),
+                    "Reason":     a.get("explanation", "—"),
                 }
                 for a in data["assignments"]
             ])

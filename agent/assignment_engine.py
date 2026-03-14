@@ -12,9 +12,8 @@ import copy
 from typing import Any
 
 from agent.employee_analyzer import rank_employees_for_task
-
-
-WORKLOAD_PER_TASK_BASE = 10  # Default workload increment per task assignment (%)
+from agent.utils import compute_workload_increment
+from agent.config import WORKLOAD_HARD_CAP
 
 
 def assign_tasks(
@@ -46,9 +45,10 @@ def assign_tasks(
         assigned = False
         for candidate in ranked:
             emp = candidate["employee"]
-            projected_workload = emp["current_workload_percent"] + WORKLOAD_PER_TASK_BASE
+            increment = compute_workload_increment(task.get("estimated_days", 0))
+            projected_workload = emp["current_workload_percent"] + increment
 
-            if projected_workload <= 90:
+            if projected_workload <= WORKLOAD_HARD_CAP:
                 # Commit the assignment
                 emp["current_workload_percent"] = projected_workload
 
@@ -82,7 +82,7 @@ def assign_tasks(
                 "assigned_role": None,
                 "fitness_score": 0.0,
                 "workload_after_assignment": None,
-                "unassigned_reason": "All eligible employees at or above 90% workload cap",
+                "unassigned_reason": f"All eligible employees at or above {WORKLOAD_HARD_CAP}% workload cap",
             })
 
     return assignments
