@@ -53,3 +53,8 @@ routes_debug.json
 *.bak
 *.tmp
 
+# Workspace specific
+LangChain-RAG/
+test_mcp.py
+.gemini/
+

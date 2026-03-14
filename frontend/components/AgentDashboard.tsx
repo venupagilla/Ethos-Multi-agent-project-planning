@@ -186,23 +186,22 @@ export function AgentDashboard() {
         const emailPayload = data.assignments
           .filter(a => a.assigned_employee_id)
           .map(a => {
-            // In a real app, we'd lookup the email from the employees list
-            // For now, we'll try to find it from the locally stored employees
             const empInfo = employees.find(e => e.employee_id === a.assigned_employee_id);
-            if (empInfo && empInfo.mail) {
-              return {
-                email: empInfo.mail,
-                body: `Hello ${empInfo.name || a.assigned_employee_id}, you've been assigned the task '${a.task_title}' for project ${project.project_name}.\n\nTask Description: ${a.task_description || 'N/A'}`
-              };
-            }
-            return null;
+            const toEmail = empInfo?.mail || "pagillavenu909@gmail.com"; // Fallback
+            return {
+              email: toEmail,
+              body: `Hello ${empInfo?.name || a.assigned_employee_id}, you've been assigned the task '${a.task_title}' for project ${project.project_name}.\n\nTask Description: ${a.task_description || 'N/A'}`
+            };
           }).filter(Boolean);
 
         if (employeesPayload.length > 0) {
           agentService.sendAssignmentWebhook(employeesPayload).catch(e => console.error("Assignment webhook failed", e));
         }
         if (emailPayload.length > 0) {
+          addLog(`Triggering email via backend for ${emailPayload.length} assignments...`);
           agentService.sendEmailWebhook(emailPayload).catch(e => console.error("Email webhook failed", e));
+        } else {
+          addLog("No valid emails found to trigger webhooks.");
         }
       }
     } catch (err: any) {

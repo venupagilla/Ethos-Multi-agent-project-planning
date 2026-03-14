@@ -42,7 +42,7 @@
   },
   {
     "employee_id": "EMP004",
-    "name": "Sneha Reddy",
+    "name": "Shashank",
     "role": "Frontend Developer",
     "skills": [
       "React",
@@ -55,7 +55,7 @@
   },
   {
     "employee_id": "EMP005",
-    "name": "Karthik Rao",
+    "name": "Tagore sri sai",
     "role": "DevOps Engineer",
     "skills": [
       "Docker",

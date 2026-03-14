@@ -183,10 +183,67 @@ async def get_analytics():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+import asyncio
+
+def _send_emails_sync(emails):
+    from agent.tools.mcp_client import MCPClient
+    
+    # Initialize the MCP Client
+    gmail = MCPClient(
+        "gmail",
+        "npx.cmd",
+        ["-y", "@gongrzhe/server-gmail-autoauth-mcp"]
+    )
+    
+    init_res = gmail.initialize()
+    logger.info(f"Gmail MCP init: {init_res}")
+    
+    success_count = 0
+    for email_task in emails:
+        to_addr = email_task.get("email")
+        body_text = email_task.get("body", "")
+        subject = email_task.get("subject", "You have a new project assignment")
+        
+        if not to_addr:
+            continue
+
+        result = gmail.call_tool(
+            "send_email",
+            {
+                "to": [to_addr],
+                "subject": subject,
+                "body": body_text
+            }
+        )
+        success_count += 1
+        logger.info(f"Email sent to {to_addr}. Result: {result}")
+    return success_count
+
+
+@app.post("/api/send-emails")
+async def send_emails_webhook(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=422, detail="Request body must be valid JSON.")
+    
+    logger.info(f"Received request for /api/send-emails: {body}")
+    emails = body.get("emails", [])
+    if not emails:
+        logger.info("No emails to send.")
+        return JSONResponse(content={"success": True, "count": 0, "message": "No emails to send"})
+
+    logger.info(f"Sending {len(emails)} emails via Gmail MCP...")
+    try:
+        success_count = await asyncio.to_thread(_send_emails_sync, emails)
+        return JSONResponse(content={"success": True, "count": success_count})
+    except Exception as e:
+        logger.error(f"Error sending MCP emails: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Mount static LAST so it doesn't shadow API routes
 os.makedirs("output", exist_ok=True)
 app.mount("/static", StaticFiles(directory="output"), name="static")
-
 
 if __name__ == "__main__":
     import uvicorn

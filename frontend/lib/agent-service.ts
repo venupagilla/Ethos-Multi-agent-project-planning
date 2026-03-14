@@ -52,7 +52,6 @@ export interface RunResult {
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 const ASSIGNMENT_WEBHOOK_URL = process.env.NEXT_PUBLIC_ASSIGNMENT_WEBHOOK_URL || "https://hook.eu1.make.com/bcmh8kqm46gbz1ub1lxeg4up4uqyqisv";
-const EMAIL_WEBHOOK_URL = process.env.NEXT_PUBLIC_EMAIL_WEBHOOK_URL || "https://hook.eu1.make.com/4du237s6afj5ta7yjodoyar08e4cofp7";
 
 export const agentService = {
   async getProjects(): Promise<ProjectInput[]> {
@@ -101,16 +100,26 @@ export const agentService = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ employees }),
     });
-    return res.json();
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      return { status: text };
+    }
   },
 
   async sendEmailWebhook(emails: any[]): Promise<any> {
-    const res = await fetch(EMAIL_WEBHOOK_URL, {
+    const res = await fetch(`${BACKEND_URL}/api/send-emails`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ emails }),
     });
-    return res.json();
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      return { status: text };
+    }
   },
 
   getMarkdownUrl(path: string): string {
