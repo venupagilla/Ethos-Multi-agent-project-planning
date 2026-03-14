@@ -19,10 +19,11 @@ from agent import config
 DATA_PATH = config.DATA_DIR / "employees.json"
 
 
+from agent import database
+
 def load_employees() -> list[dict[str, Any]]:
-    """Load all employees from the JSON data file."""
-    with open(DATA_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """Load all employees from the database."""
+    return database.get_employees()
 
 
 def compute_fitness(employee: dict[str, Any], required_skills: list[str]) -> float:

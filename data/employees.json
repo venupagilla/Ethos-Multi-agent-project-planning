@@ -1,0 +1,84 @@
+[
+  {
+    "employee_id": "EMP001",
+    "name": "Aarav Sharma",
+    "role": "AI Engineer",
+    "skills": [
+      "Python",
+      "LLMs",
+      "LangChain",
+      "ML"
+    ],
+    "experience_years": 4,
+    "current_workload_percent": 40,
+    "mail": "pagillavenu909@gmail.com"
+  },
+  {
+    "employee_id": "EMP002",
+    "name": "Riya Patel",
+    "role": "Data Scientist",
+    "skills": [
+      "Python",
+      "Data Analysis",
+      "ML",
+      "Pandas"
+    ],
+    "experience_years": 3,
+    "current_workload_percent": 35,
+    "mail": "pagillavenu909@gmail.com"
+  },
+  {
+    "employee_id": "EMP003",
+    "name": "Vikram Singh",
+    "role": "Backend Developer",
+    "skills": [
+      "Node.js",
+      "APIs",
+      "Databases"
+    ],
+    "experience_years": 5,
+    "current_workload_percent": 50,
+    "mail": "shashankfan@gmail.com"
+  },
+  {
+    "employee_id": "EMP004",
+    "name": "Sneha Reddy",
+    "role": "Frontend Developer",
+    "skills": [
+      "React",
+      "UI/UX",
+      "JavaScript"
+    ],
+    "experience_years": 2,
+    "current_workload_percent": 30,
+    "mail": "shashankfan@gmail.com"
+  },
+  {
+    "employee_id": "EMP005",
+    "name": "Karthik Rao",
+    "role": "DevOps Engineer",
+    "skills": [
+      "Docker",
+      "Kubernetes",
+      "AWS",
+      "CI/CD"
+    ],
+    "experience_years": 4,
+    "current_workload_percent": 45,
+    "mail": "tagoresrisai@gmail.com"
+  },
+  {
+    "employee_id": "EMP006",
+    "name": "Meera Nair",
+    "role": "AI Researcher",
+    "skills": [
+      "LLMs",
+      "NLP",
+      "RAG",
+      "Deep Learning"
+    ],
+    "experience_years": 6,
+    "current_workload_percent": 55,
+    "mail": "tagoresrisai@gmail.com"
+  }
+]

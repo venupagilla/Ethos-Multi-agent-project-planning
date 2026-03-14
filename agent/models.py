@@ -1,7 +1,7 @@
 """
 models.py
 ---------
-Shared Pydantic models for the NeuraX system.
+Shared Pydantic models for the Ethos system.
 """
 
 from pydantic import BaseModel
@@ -31,3 +31,9 @@ class TaskAssignment(BaseModel):
     fitness_score: float
     workload_after_assignment: Optional[float]
     unassigned_reason: Optional[str]
+
+class AgentSelection(BaseModel):
+    """Output schema for an agent's employee selection decision."""
+    employee_id: Optional[str]
+    fitness_score: float
+    reasoning: str

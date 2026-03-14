@@ -1,7 +1,7 @@
 """
 utils.py
 --------
-Shared utility functions for the NeuraX agents.
+Shared utility functions for the Ethos agents.
 """
 
 # Synonym mapping for skill normalization (shared with other agents)
@@ -21,8 +21,15 @@ SKILL_SYNONYMS = {
 
 def normalize_skill(skill: str) -> str:
     """Normalize a skill string for better matching."""
-    s = skill.lower().replace(" ", "").replace("-", "")
-    return SKILL_SYNONYMS.get(s, s)
+    # 1. Lowercase and remove leading/trailing whitespace
+    s = skill.lower().strip()
+    
+    # 2. Key for synonym lookup (remove internal spaces and dashes)
+    lookup_key = s.replace(" ", "").replace("-", "")
+    normalized = SKILL_SYNONYMS.get(lookup_key, s)
+    
+    # 3. Final clean key for internal comparison (no spaces, no dashes)
+    return normalized.replace(" ", "").replace("-", "").replace(".", "")
 
 def compute_skill_match_ratio(employee_skills: list[str], required_skills: list[str]) -> tuple[float, set[str]]:
     """Compute the ratio of matched skills and return the overlapping skills."""

@@ -1,0 +1,34 @@
+[
+  {
+    "project_id": "PRJ001",
+    "project_name": "AI Sales Assistant",
+    "description": "AI assistant that generates sales proposals automatically",
+    "required_skills": ["LLM", "NLP", "APIs"],
+    "deadline_days": 30,
+    "priority": "High"
+  },
+  {
+    "project_id": "PRJ002",
+    "project_name": "Healthcare Diagnosis Model",
+    "description": "Predict early disease risk using ML models",
+    "required_skills": ["ML", "Data Analysis", "Python"],
+    "deadline_days": 45,
+    "priority": "High"
+  },
+  {
+    "project_id": "PRJ003",
+    "project_name": "Customer Support Chatbot",
+    "description": "AI chatbot for customer support queries",
+    "required_skills": ["LLM", "RAG", "APIs"],
+    "deadline_days": 25,
+    "priority": "Medium"
+  },
+  {
+    "project_id": "PRJ004",
+    "project_name": "Smart Inventory System",
+    "description": "Automated inventory demand prediction system",
+    "required_skills": ["Python", "ML", "Data Engineering"],
+    "deadline_days": 40,
+    "priority": "Medium"
+  }
+]

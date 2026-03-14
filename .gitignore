@@ -9,10 +9,21 @@ venv/
 .env/
 .env
 
+# Node / Frontend
+node_modules/
+.next/
+dist/
+build/
+
+# Databases
+*.db
+*.sqlite
+
 # Output and reports
 output/
-*.json
-*.md
+# If you want to ignore all json/md in specific folders, do that instead of global
+# results/*.json
+# reports/*.md
 
 # OS files
 .DS_Store
@@ -20,18 +31,25 @@ Thumbs.db
 
 # IDE/editor files
 .vscode/
+.idea/
 *.swp
 *.swo
 
 # Python test cache
-*.pytest_cache/
+.pytest_cache/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
-# Logs
+# Logs and Debug
 *.log
+lint.txt
+ts_errors.txt
+routes_debug.txt
+routes.json
+routes_debug.json
 
 # Misc
 *.bak
 *.tmp
+

@@ -1,7 +1,7 @@
 """
 tests/test_assignment.py
 ------------------------
-Unit + integration tests for the NeuraX Project Assignment Agent.
+Unit + integration tests for the Ethos Project Assignment Agent.
 Tests are designed to run WITHOUT an LLM API key — the decomposer is mocked.
 """
 

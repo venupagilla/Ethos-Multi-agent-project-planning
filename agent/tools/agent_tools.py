@@ -1,4 +1,4 @@
-"""LangChain Tools for the NeuraX Planner Agent."""
+"""LangChain Tools for the Ethos Planner Agent."""
 
 import json
 from langchain.tools import tool

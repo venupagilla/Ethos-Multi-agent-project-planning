@@ -24,62 +24,60 @@ def _get_llm():
     )
 
 
-SYSTEM_PROMPT = """You are a senior software project manager and technical architect.
-Your job is to decompose a software project into clear, atomic, actionable sub-tasks.
-Return ONLY a valid JSON array of task objects. Do not include any markdown, explanation, or commentary.
+from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel, Field
 
-Each task object must have exactly these fields:
-- task_id: string (e.g. "T1", "T2", ...)
-- title: string (short task title)
-- description: string (1-2 sentences, concrete and actionable)
-- required_skills: list of strings
-- estimated_days: integer (realistic estimate)
-- type: string (must be one of: "devops", "development", "testing", "design")
-- dependencies: list of task_ids that must complete first (empty list if none)
+class ProjectTask(BaseModel):
+    """Schema for a decomposed project task."""
+    task_id: str = Field(description="Unique ID like T1, T2")
+    title: str = Field(description="Short, descriptive title")
+    description: str = Field(description="Actionable task details")
+    required_skills: list[str] = Field(description="Skills needed for the task")
+    estimated_days: int = Field(description="Realistic effort estimate")
+    type: str = Field(description="Category: devops, development, testing, design")
+    dependencies: list[str] = Field(description="IDs of prerequisite tasks")
 
-Generate between 5 and 10 tasks. Be practical and realistic."""
-
+class ProjectDecomposition(BaseModel):
+    """List of tasks for the project."""
+    tasks: list[ProjectTask]
 
 def decompose(project: dict[str, Any]) -> list[dict[str, Any]]:
     """
     Decompose a project into sub-tasks using the configured LLM.
-
-    Args:
-        project: dict with keys project_id, project_name, description,
-                 required_skills, deadline_days, priority
-
-    Returns:
-        List of task dicts
     """
     import logging
     llm = _get_llm()
 
-    user_prompt = f"""Project: {project['project_name']}
-Description: {project['description']}
-Required Skills: {', '.join(project['required_skills'])}
-Deadline: {project['deadline_days']} days
-Priority: {project['priority']}
+    system_prompt = """You are a senior software project manager and technical architect.
+Your job is to decompose a software project into clear, atomic, actionable sub-tasks.
+Generate between 5 and 10 tasks. Be practical and realistic."""
+
+    user_prompt = """Project: {name}
+Description: {description}
+Required Skills: {skills}
+Deadline: {deadline} days
+Priority: {priority}
 
 Decompose this project into 5-10 concrete sub-tasks."""
 
-    messages = [
-        SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=user_prompt),
-    ]
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        ("human", user_prompt),
+    ])
+
+    structured_llm = llm.with_structured_output(ProjectDecomposition)
+    chain = prompt | structured_llm
 
     try:
-        response = llm.invoke(messages)
-        raw = response.content.strip()
-        logging.info(f"[decompose] LLM raw response: {raw}")
-        # Strip markdown code fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        raw = raw.strip()
-        tasks = json.loads(raw)
-        logging.info(f"[decompose] Parsed tasks: {tasks}")
-        return tasks
+        result = chain.invoke({
+            "name": project['project_name'],
+            "description": project['description'],
+            "skills": ', '.join(project['required_skills']),
+            "deadline": project['deadline_days'],
+            "priority": project['priority']
+        })
+        logging.info(f"[decompose] Parsed tasks: {result.tasks}")
+        return [t.model_dump() for t in result.tasks]
     except Exception as e:
         logging.error(f"[decompose] Error during task decomposition: {e}")
         return []

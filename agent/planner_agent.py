@@ -12,7 +12,7 @@ Flow:
   6. Generate JSON + Markdown report
 
 The agent is designed to be called as a Python function (module mode)
-so the upstream NeuraX orchestrator can import and invoke it directly.
+so the upstream Ethos orchestrator can import and invoke it directly.
 """
 
 import json
@@ -30,90 +30,54 @@ def run_pipeline(
     verbose: bool = True,
 ) -> dict[str, Any]:
     """
-    Run the full planning and assignment pipeline for a given project.
-
-    Args:
-        project: dict matching the project schema
-                 (project_id, project_name, description,
-                  required_skills, deadline_days, priority)
-        output_dir: directory to write report files to
-        verbose: if True, print progress to stdout
-
-    Returns:
-        {
-            assignments: list,
-            risk_report: dict,
-            skill_gaps: dict,
-            rebalance_log: list,
-            json_path: str,
-            markdown_path: str,
-            markdown: str,
-        }
+    Run the full planning and assignment pipeline using LangGraph.
     """
-    from agent.task_decomposer import decompose
+    from agent.graph import create_graph, save_graph_visualization
     from agent.employee_analyzer import load_employees
-    from agent.features.skill_gap_detector import detect_gaps
-    from agent.features.workload_balancer import rebalance
-    from agent.features.risk_assessor import assess_risk
-    from agent.features.report_generator import generate
-    from agent.super_agent import SuperAgent
 
     _log(verbose, f"\n{'='*60}")
-    _log(verbose, f"  NeuraX Project Assignment Agent")
+    _log(verbose, f"  Ethos Project Assignment Agent (LangGraph Mode)")
     _log(verbose, f"  Project: {project['project_name']} ({project['project_id']})")
     _log(verbose, f"{'='*60}\n")
 
+    # Initialize Graph
+    graph = create_graph()
+    
+    # Save visualization
+    os.makedirs(output_dir, exist_ok=True)
+    save_graph_visualization(graph, os.path.join(output_dir, "agent_workflow.mermaid"))
 
-    # Step 1: Task Decomposition (SuperAgent will use this or similar logic)
-    _log(verbose, "📋 Step 1: Decomposing project into tasks and workflow (SuperAgent)...")
-    employees = load_employees()
-    super_agent = SuperAgent(employees)
-    tasks = decompose(project)
-    project["tasks"] = tasks
-    _log(verbose, f"   → Generated {len(tasks)} tasks with types.")
+    # Initial State
+    initial_state = {
+        "project": project,
+        "employees": load_employees(),
+        "tasks": [],
+        "assignments": [],
+        "skill_gaps": {},
+        "rebalance_log": [],
+        "risk_report": {},
+        "output_dir": output_dir,
+        "report": {},
+        "status": "Starting"
+    }
 
-    # Step 2: Skill Gap Detection (unchanged)
-    _log(verbose, "🔍 Step 2: Detecting skill gaps...")
-    skill_gaps = detect_gaps(tasks, employees, project)
-    if skill_gaps["has_gaps"]:
-        _log(verbose, f"   ⚠️  Gaps found: {skill_gaps['project_level_gaps'] + [g['missing_skills'] for g in skill_gaps['task_level_gaps']]}")
-    else:
-        _log(verbose, "   ✅ No skill gaps found.")
+    # Execute Graph
+    _log(verbose, "🚀 Executing LangGraph workflow...")
+    final_execution_state = graph.invoke(initial_state)
+    _log(verbose, "✅ LangGraph workflow complete.")
 
-    # Step 3: Multi-Agent Task Assignment
-    _log(verbose, "🤖 Step 3: Assigning tasks using multi-agent system...")
-    assignments = super_agent.run(project)
-    assigned_count = sum(1 for a in assignments if a["assigned_employee_id"])
-    _log(verbose, f"   → {assigned_count}/{len(assignments)} tasks successfully assigned.")
-
-    # Step 4: Workload Rebalancing (unchanged)
-    _log(verbose, "⚖️  Step 4: Checking workload balance...")
-    final_assignments, rebalance_log = rebalance(assignments, employees)
-    for entry in rebalance_log:
-        _log(verbose, f"   {entry}")
-
-
-    # Step 5: Risk Assessment (unchanged)
-    _log(verbose, "🔴 Step 5: Assessing project risk...")
-    risk_report = assess_risk(project, final_assignments)
-    _log(verbose, f"   → Overall Risk: {risk_report['overall_risk_level']}")
-
-    # Step 6: Report Generation (unchanged)
-    _log(verbose, "📄 Step 6: Generating reports...")
-    report = generate(project, final_assignments, risk_report, skill_gaps, rebalance_log, output_dir)
-    _log(verbose, f"   → JSON:     {report['json_path']}")
-    _log(verbose, f"   → Markdown: {report['markdown_path']}")
-    _log(verbose, f"\n{'='*60}\n")
+    res = final_execution_state
+    report = res["report"]
 
     return {
-        "tasks": tasks,
-        "assignments": final_assignments,
-        "risk_report": risk_report,
-        "skill_gaps": skill_gaps,
-        "rebalance_log": rebalance_log,
-        "json_path": report["json_path"],
-        "markdown_path": report["markdown_path"],
-        "markdown": report["markdown"],
+        "tasks": res["tasks"],
+        "assignments": res["assignments"],
+        "risk_report": res["risk_report"],
+        "skill_gaps": res["skill_gaps"],
+        "rebalance_log": res["rebalance_log"],
+        "json_path": report.get("json_path"),
+        "markdown_path": report.get("markdown_path"),
+        "markdown": report.get("markdown", ""),
     }
 
 

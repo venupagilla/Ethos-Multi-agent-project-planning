@@ -1,7 +1,7 @@
 """
 server.py
 ---------
-FastAPI server exposing the NeuraX Project Assignment Agent via HTTP.
+FastAPI server exposing the Ethos Project Assignment Agent via HTTP.
 
 Endpoints:
   GET  /                        -> Serves the frontend HTML
@@ -20,6 +20,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from agent.config import DATA_DIR, FRONTEND_DIR
 from agent.planner_agent import run_pipeline as _run_pipeline # Corrected import name if it was _run_agent
@@ -58,7 +59,7 @@ async def lifespan(app: FastAPI):
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="NeuraX Project Assignment Agent",
+    title="Ethos Project Assignment Agent",
     version="4.0",
     lifespan=lifespan,          # modern replacement for on_event
 )
@@ -71,6 +72,8 @@ app.add_middleware(
 )
 
 
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -81,31 +84,38 @@ async def serve_frontend():
     return FRONTEND_PATH.read_text(encoding="utf-8")
 
 
+from agent import database
+
 @app.get("/api/projects")
 async def get_projects():
-    """Return all sample projects."""
-    path = DATA_DIR / "projects.json"
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="projects.json not found.")
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+    """Return all projects from database, fallback to JSON."""
+    projects = database.get_projects()
+    if not projects:
+        path = DATA_DIR / "projects.json"
+        if path.exists():
+            with open(path, encoding="utf-8") as f:
+                projects = json.load(f)
+                for p in projects:
+                    database.save_project(p)
+    return projects
 
 
-# app.api_route with an explicit methods list is the most reliable way to
-# register GET and POST on the same path. It avoids the decorator-ordering
-# quirk that caused the POST to be silently dropped in previous versions.
 @app.api_route("/api/employees", methods=["GET", "POST"])
 async def employees_endpoint(request: Request):
     """
-    GET  -> return the current employee pool.
-    POST -> accept a JSON body {"employees": [...]} and overwrite the pool.
+    GET  -> return the current employee pool from DB.
+    POST -> accept a JSON body {"employees": [...]} and save to DB.
     """
     if request.method == "GET":
-        path = DATA_DIR / "employees.json"
-        if not path.exists():
-            return JSONResponse(content=[])
-        with open(path, encoding="utf-8") as f:
-            return JSONResponse(content=json.load(f))
+        employees = database.get_employees()
+        if not employees:
+            # Fallback to JSON if DB is empty
+            path = DATA_DIR / "employees.json"
+            if path.exists():
+                with open(path, encoding="utf-8") as f:
+                    employees = json.load(f)
+                    database.save_employees(employees)
+        return JSONResponse(content=employees)
 
     # ---- POST ----
     try:
@@ -120,13 +130,12 @@ async def employees_endpoint(request: Request):
         )
 
     employees = body["employees"]
-    logger.info("POST /api/employees -- saving %d employees", len(employees))
+    logger.info("POST /api/employees -- saving %d employees to SQLite", len(employees))
 
     try:
-        with open(DATA_DIR / "employees.json", "w", encoding="utf-8") as f:
-            json.dump(employees, f, ensure_ascii=False, indent=2)
+        database.save_employees(employees)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save employees: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save employees to DB: {e}")
 
     return JSONResponse(content={"success": True, "count": len(employees)})
 
@@ -160,6 +169,23 @@ async def run_agent(project: ProjectInput):
                 "message": str(e)
             }
         )
+
+
+@app.get("/api/analytics")
+async def get_analytics():
+    """Return workforce skill analytics."""
+    try:
+        dist = database.get_skill_distribution()
+        logger.info(f"Analytics: {dist}")
+        return dist
+    except Exception as e:
+        logger.error(f"Analytics error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Mount static LAST so it doesn't shadow API routes
+os.makedirs("output", exist_ok=True)
+app.mount("/static", StaticFiles(directory="output"), name="static")
 
 
 if __name__ == "__main__":

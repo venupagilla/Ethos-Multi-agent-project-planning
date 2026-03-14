@@ -1,7 +1,7 @@
 """
 main.py
 -------
-CLI entry point for the NeuraX Project Assignment Agent.
+CLI entry point for the Ethos Project Assignment Agent.
 
 Usage:
   # Run a specific project by ID from the bundled data file:
@@ -13,7 +13,7 @@ Usage:
   # Pass a project as a raw JSON string:
   python main.py --json '{"project_id":"PRJ001", ...}'
 
-  # Run as importable module from the NeuraX orchestrator:
+  # Run as importable module from the Ethos orchestrator:
   from main import run_agent
   result = run_agent(project_dict)
 """
@@ -29,7 +29,7 @@ DATA_PROJECTS_PATH = config.DATA_DIR / "projects.json"
 
 def run_agent(project: dict, output_dir: str = "output", verbose: bool = True) -> dict:
     """
-    Module-mode entry point. Import and call this from upstream NeuraX agents.
+    Module-mode entry point. Import and call this from upstream Ethos agents.
 
     Args:
         project: project dict
@@ -54,7 +54,7 @@ def _load_project_by_id(project_id: str) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="NeuraX Project Assignment Agent",
+        description="Ethos Project Assignment Agent",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )

@@ -1,7 +1,7 @@
 """
 config.py
 ---------
-Centralized configuration manager for NeuraX.
+Centralized configuration manager for Ethos.
 """
 
 import os
