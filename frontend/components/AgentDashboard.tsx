@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, 
@@ -22,7 +22,9 @@ import {
   Lightbulb, 
   ScrollText, 
   Users,
-  Layout
+  Layout,
+  MessageSquare,
+  Send
 } from "lucide-react";
 import { agentService, ProjectInput, RunResult, Employee, Assignment } from "@/lib/agent-service";
 import { Button } from "./ui/Button";
@@ -43,6 +45,18 @@ export function AgentDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
+  const [chatQuery, setChatQuery] = useState("");
+  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'assistant', text: string}[]>([]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatHistory]);
 
   const addLog = (msg: string) => {
     setConsoleLogs(prev => [...prev.slice(-9), `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -208,6 +222,25 @@ export function AgentDashboard() {
       setError(err.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleChat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatQuery.trim() || isChatLoading) return;
+    
+    const userMsg = chatQuery;
+    setChatQuery("");
+    setChatHistory(prev => [...prev, { role: 'user', text: userMsg }]);
+    setIsChatLoading(true);
+    
+    try {
+      const { response } = await agentService.ragChat(project.project_id, userMsg);
+      setChatHistory(prev => [...prev, { role: 'assistant', text: response }]);
+    } catch (err: any) {
+      setChatHistory(prev => [...prev, { role: 'assistant', text: "Sorry, I couldn't process that request." }]);
+    } finally {
+      setIsChatLoading(false);
     }
   };
 
@@ -448,6 +481,91 @@ export function AgentDashboard() {
                 )}
               </div>
               <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-black to-transparent pointer-events-none" />
+            </motion.div>
+
+            {/* AI Project Assistant (RAG Chat) */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="p-1 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-[32px]"
+            >
+              <div className="bg-zinc-950 rounded-[31px] overflow-hidden flex flex-col h-[500px]">
+                {/* Chat Header */}
+                <div className="p-6 border-b border-white/10 bg-white/[0.02] flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                      <MessageSquare className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-white uppercase tracking-widest text-sm">Project Assistant</h3>
+                      <p className="text-[10px] text-white/40 uppercase tracking-widest mt-0.5">RAG Powered Knowledge Base</p>
+                    </div>
+                  </div>
+                  {result && (
+                    <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-[10px] font-black text-green-500 uppercase tracking-tighter">Docs Indexed</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Chat Messages */}
+                <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.05),transparent_70%)]">
+                  {chatHistory.length === 0 && (
+                    <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">
+                      <Zap className="w-8 h-8 text-white" />
+                      <p className="text-xs uppercase tracking-[0.2em] max-w-[240px] leading-relaxed">
+                        {result ? "Documents ready. Ask about the SRS, DRD, or team assignments." : "Initiate the agent to generate project documents and enable chat."}
+                      </p>
+                    </div>
+                  )}
+                  {chatHistory.map((chat, i) => (
+                    <motion.div 
+                      key={i}
+                      initial={{ opacity: 0, y: 10, x: chat.role === 'user' ? 20 : -20 }}
+                      animate={{ opacity: 1, y: 0, x: 0 }}
+                      className={`flex ${chat.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-[85%] rounded-[24px] px-6 py-4 text-sm font-sans ${
+                        chat.role === 'user' 
+                          ? 'bg-blue-600 text-white rounded-tr-none shadow-[0_10px_30px_rgba(37,99,235,0.2)]' 
+                          : 'bg-white/5 text-white/90 border border-white/10 rounded-tl-none backdrop-blur-md'
+                      }`}>
+                        {chat.text}
+                      </div>
+                    </motion.div>
+                  ))}
+                  {isChatLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-white/5 border border-white/10 rounded-[24px] rounded-tl-none px-6 py-4 text-sm font-sans text-white/40 animate-pulse">
+                        Neural engine scanning documentation...
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Chat Input */}
+                <form onSubmit={handleChat} className="p-6 bg-white/[0.02] border-t border-white/10">
+                  <div className="relative group">
+                    <input 
+                      type="text" 
+                      placeholder={result ? "Type your question..." : "Waiting for project generation..."}
+                      disabled={!result || isChatLoading}
+                      value={chatQuery}
+                      onChange={(e) => setChatQuery(e.target.value)}
+                      className="w-full bg-black border border-white/10 rounded-2xl py-4 pl-6 pr-14 text-sm text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all font-sans placeholder:text-white/20 disabled:opacity-50"
+                    />
+                    <button 
+                      type="submit"
+                      disabled={!result || isChatLoading || !chatQuery.trim()}
+                      className="absolute right-2 top-2 p-2.5 bg-blue-600 rounded-xl text-white hover:bg-blue-500 disabled:opacity-20 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-600/20"
+                    >
+                      <Send size={18} />
+                    </button>
+                  </div>
+                </form>
+              </div>
             </motion.div>
 
           </div>
@@ -735,7 +853,7 @@ export function AgentDashboard() {
                   </div>
 
                   {/* Markdown Report Download */}
-                  <div className="relative group mt-12">
+                  <div className="flex flex-col gap-4 mt-12">
                     <button 
                       onClick={() => {
                         const content = result?.markdown || '# No report available';
@@ -756,13 +874,30 @@ export function AgentDashboard() {
                            <FileText className="w-6 h-6" />
                         </div>
                         <div className="text-left">
-                           <span className="font-black uppercase tracking-widest text-lg block">Final Report Generated</span>
-                           <span className="text-xs uppercase tracking-widest text-black/40 block mt-1">Audit complete. Download markdown report.</span>
+                           <span className="font-black uppercase tracking-widest text-lg block">Assignment Report</span>
+                           <span className="text-xs uppercase tracking-widest text-black/40 block mt-1">Audit complete. Download markdown.</span>
                         </div>
                       </div>
                       <ChevronRight className="relative z-10 w-8 h-8 group-hover:translate-x-2 transition-transform duration-500" />
-                      <div className="absolute inset-x-0 bottom-0 h-1.5 bg-cyan-400 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                     </button>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {['srs', 'drd'].map(type => (
+                        <a 
+                          key={type}
+                          href={agentService.getMarkdownUrl(`${project.project_id}_${type}.md`)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-6 bg-white/[0.03] border border-white/10 rounded-2xl flex items-center justify-between hover:bg-white/5 transition-all group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <ScrollText size={16} className="text-blue-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/60">{type} Document</span>
+                          </div>
+                          <ChevronRight size={14} className="text-white/20 group-hover:translate-x-1 transition-transform" />
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 </motion.div>
               )}

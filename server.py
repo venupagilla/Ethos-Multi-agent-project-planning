@@ -183,6 +183,26 @@ async def get_analytics():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/rag-chat")
+async def rag_chat(request: Request):
+    """Chat with project documentation using RAG."""
+    body = await request.json()
+    project_id = body.get("project_id")
+    query = body.get("query")
+    
+    if not project_id or not query:
+        raise HTTPException(status_code=400, detail="Missing project_id or query")
+    
+    try:
+        from agent.tools.vector_service import query_project_data
+        # Run sync function in thread to avoid blocking
+        response = await asyncio.to_thread(query_project_data, project_id, query)
+        return {"response": response}
+    except Exception as e:
+        logger.error(f"RAG Chat error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 import asyncio
 
 def _send_emails_sync(emails):

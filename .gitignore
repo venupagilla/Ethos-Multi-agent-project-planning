@@ -57,4 +57,8 @@ routes_debug.json
 LangChain-RAG/
 test_mcp.py
 .gemini/
+data/vector_dbs/
+rag_error.txt
+test_out.txt
+test_rag.py
 

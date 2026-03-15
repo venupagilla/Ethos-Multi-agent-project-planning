@@ -58,6 +58,7 @@ def run_pipeline(
         "risk_report": {},
         "output_dir": output_dir,
         "report": {},
+        "generated_docs": {},
         "status": "Starting"
     }
 

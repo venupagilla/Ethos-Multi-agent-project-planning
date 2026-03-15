@@ -122,6 +122,16 @@ export const agentService = {
     }
   },
 
+  async ragChat(projectId: string, query: string): Promise<{ response: string }> {
+    const res = await fetch(`${BACKEND_URL}/api/rag-chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project_id: projectId, query }),
+    });
+    if (!res.ok) throw new Error("Chat failed");
+    return res.json();
+  },
+
   getMarkdownUrl(path: string): string {
     if (!path) return "#";
     const filename = path.split(/[\\/]/).pop();

@@ -4,6 +4,7 @@ graph.py
 Defines the LangGraph orchestration for the Ethos Project Assignment Agent.
 """
 
+import os
 import logging
 from typing import Annotated, Any, Dict, List, TypedDict
 
@@ -15,6 +16,8 @@ from agent.features.skill_gap_detector import detect_gaps
 from agent.features.workload_balancer import rebalance
 from agent.features.risk_assessor import assess_risk
 from agent.features.report_generator import generate
+from agent.features.document_generator import generate_documents
+from agent.tools.vector_service import index_project_data
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +32,7 @@ class AgentState(TypedDict):
     risk_report: Dict[str, Any]
     output_dir: str
     report: Dict[str, str]
+    generated_docs: Dict[str, str]
     status: str
 
 # Nodes
@@ -66,7 +70,6 @@ def risk_assessor_node(state: AgentState) -> Dict[str, Any]:
     logger.info("[NODES] Running risk_assessor_node - Evaluating timeline risk...")
     risk = assess_risk(state["project"], state["assignments"])
     return {"risk_report": risk, "status": "Risk Assessed"}
-
 def publisher_node(state: AgentState) -> Dict[str, Any]:
     """Generate final reports."""
     logger.info("[NODES] Running publisher_node - Generating reports...")
@@ -78,7 +81,36 @@ def publisher_node(state: AgentState) -> Dict[str, Any]:
         state["rebalance_log"],
         state["output_dir"]
     )
+    
+    # Save SRS and DRD if they exist (generated in future node but we can generate them earlier or just handle here)
+    # Wait, the flow is publisher -> doc_generator. 
+    # Let's move doc_generator BEFORE publisher so publisher can include links? 
+    # Or just let doc_generator save its own files.
+    
     return {"report": report, "status": "Report Generated"}
+
+def doc_generator_node(state: AgentState) -> Dict[str, Any]:
+    """Generate SRS and DRD documents."""
+    logger.info("[NODES] Running doc_generator_node - Creating SRS and DRD...")
+    docs = generate_documents(state["project"], state["tasks"])
+    
+    # Save to files
+    project_id = state["project"]["project_id"]
+    for doc_type in ["srs", "drd"]:
+        path = os.path.join(state["output_dir"], f"{project_id}_{doc_type}.md")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(docs.get(doc_type, ""))
+        logger.info(f"Saved {doc_type.upper()} to {path}")
+            
+    return {"generated_docs": docs, "status": "Documents Generated"}
+
+def indexer_node(state: AgentState) -> Dict[str, Any]:
+    """Index all documents for RAG."""
+    logger.info("[NODES] Running indexer_node - Indexing for RAG...")
+    doc_map = state["generated_docs"].copy()
+    doc_map["report"] = state["report"].get("markdown", "")
+    index_project_data(state["project"]["project_id"], doc_map)
+    return {"status": "Indexing Complete"}
 
 # Graph Construction
 
@@ -92,6 +124,8 @@ def create_graph():
     workflow.add_node("balancer", balancer_node)
     workflow.add_node("risk_assessor", risk_assessor_node)
     workflow.add_node("publisher", publisher_node)
+    workflow.add_node("doc_generator", doc_generator_node)
+    workflow.add_node("indexer", indexer_node)
 
     # Add edges
     workflow.set_entry_point("planner")
@@ -100,7 +134,9 @@ def create_graph():
     workflow.add_edge("assigner", "balancer")
     workflow.add_edge("balancer", "risk_assessor")
     workflow.add_edge("risk_assessor", "publisher")
-    workflow.add_edge("publisher", END)
+    workflow.add_edge("publisher", "doc_generator")
+    workflow.add_edge("doc_generator", "indexer")
+    workflow.add_edge("indexer", END)
 
     return workflow.compile()
 
