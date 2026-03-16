@@ -176,4 +176,3 @@ Ethos integrates with the Model Context Protocol (MCP) to autonomously send assi
 Every project report and documentation is indexed in a vector store. The `/api/rag-chat` endpoint provides an interface for interacting with this data using semantic search.
 
 ---
-*Developed with ❤️ for the Next Gen AI Hackathon*
