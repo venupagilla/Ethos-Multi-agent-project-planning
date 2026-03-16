@@ -14,8 +14,8 @@ const syne = Syne({
 });
 
 export const metadata: Metadata = {
-  title: "Nomore - Webflow HTML website template Recreation",
-  description: "Next.js recreation of the Nomore Studio template.",
+  title: "Ethos - Project division 4.0",
+  description: "Ethos - Project division 4.0",
 };
 
 export default function RootLayout({

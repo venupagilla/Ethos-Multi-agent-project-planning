@@ -100,60 +100,64 @@ export function AgentDashboard() {
 
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const text = event.target?.result as string;
-        const lines = text.split(/\r?\n/).filter(line => line.trim());
-        
-        // Robust CSV splitting (handles quotes)
-        const splitCSV = (line: string) => {
-          const result = [];
-          let current = "";
-          let inQuotes = false;
-          for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            if (char === '"') inQuotes = !inQuotes;
-            else if (char === ',' && !inQuotes) {
-              result.push(current.trim());
-              current = "";
-            } else current += char;
-          }
-          result.push(current.trim());
-          return result;
-        };
-
-        const headers = splitCSV(lines[0]).map(h => h.trim().toLowerCase().replace(/"/g, ''));
-        
-        const parsedEmployees = lines.slice(1).map(line => {
-          const values = splitCSV(line);
-          const emp: any = {};
-          headers.forEach((header, i) => {
-            let val = values[i] ? values[i].replace(/"/g, '') : "";
-            if (header === "skills") {
-              // Handle both semicolon and comma separated skills within quotes
-              emp[header] = val ? val.split(/[;,]/).map(s => s.trim()).filter(Boolean) : [];
-            } else if (header === "experience_years" || header === "current_workload_percent") {
-              emp[header] = parseFloat(val) || 0;
-            } else {
-              emp[header] = val;
-            }
-          });
-          return emp;
-        });
-
-        await agentService.uploadEmployees(parsedEmployees);
+      if (file.name.endsWith(".csv")) {
+        // For CSV files, send the raw file directly to the backend CSV endpoint.
+        // This is far more efficient for large datasets (500+ rows) than parsing
+        // the CSV in the browser and sending a huge JSON payload.
+        addLog(`Uploading ${file.name} (${(file.size / 1024).toFixed(1)} KB)…`);
+        const result = await agentService.uploadEmployeesCSV(file);
         await fetchEmployees();
-        addLog(`Workforce optimized: ${parsedEmployees.length} profiles synchronized.`);
-      };
-      reader.readAsText(file);
+        addLog(`Workforce synchronized: ${result.count} profiles imported from CSV.`);
+      } else {
+        // Legacy path for non-CSV uploads
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const text = event.target?.result as string;
+          const lines = text.split(/\r?\n/).filter(line => line.trim());
+          const splitCSV = (line: string) => {
+            const result = [];
+            let current = "";
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+              const char = line[i];
+              if (char === '"') inQuotes = !inQuotes;
+              else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ""; }
+              else current += char;
+            }
+            result.push(current.trim());
+            return result;
+          };
+          const headers = splitCSV(lines[0]).map(h => h.trim().toLowerCase().replace(/"/g, ''));
+          const parsedEmployees = lines.slice(1).map(line => {
+            const values = splitCSV(line);
+            const emp: any = {};
+            headers.forEach((header, i) => {
+              let val = values[i] ? values[i].replace(/"/g, '') : "";
+              if (header === "skills") {
+                emp[header] = val ? val.split(/[;,]/).map(s => s.trim()).filter(Boolean) : [];
+              } else if (header === "experience_years" || header === "current_workload_percent") {
+                emp[header] = parseFloat(val) || 0;
+              } else { emp[header] = val; }
+            });
+            return emp;
+          });
+          await agentService.uploadEmployees(parsedEmployees);
+          await fetchEmployees();
+          addLog(`Workforce optimized: ${parsedEmployees.length} profiles synchronized.`);
+        };
+        reader.readAsText(file);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
       setIsLoading(false);
+      // Reset the file input so the same file can be re-uploaded if needed
+      e.target.value = "";
     }
   };
+
 
   const handleRunAgent = async () => {
     if (!project.project_name || !project.description) {
@@ -201,7 +205,7 @@ export function AgentDashboard() {
           .filter(a => a.assigned_employee_id)
           .map(a => {
             const empInfo = employees.find(e => e.employee_id === a.assigned_employee_id);
-            const toEmail = empInfo?.mail || "pagillavenu909@gmail.com"; // Fallback
+            const toEmail = empInfo?.mail || "tagoresrisai@gmail.com";
             return {
               email: toEmail,
               body: `Hello ${empInfo?.name || a.assigned_employee_id}, you've been assigned the task '${a.task_title}' for project ${project.project_name}.\n\nTask Description: ${a.task_description || 'N/A'}`
@@ -881,22 +885,50 @@ export function AgentDashboard() {
                       <ChevronRight className="relative z-10 w-8 h-8 group-hover:translate-x-2 transition-transform duration-500" />
                     </button>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      {['srs', 'drd'].map(type => (
-                        <a 
-                          key={type}
-                          href={agentService.getMarkdownUrl(`${project.project_id}_${type}.md`)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-6 bg-white/[0.03] border border-white/10 rounded-2xl flex items-center justify-between hover:bg-white/5 transition-all group"
-                        >
-                          <div className="flex items-center gap-3">
-                            <ScrollText size={16} className="text-blue-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/60">{type} Document</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* SRS Button */}
+                      <motion.a 
+                        href={agentService.getMarkdownUrl(`${project.project_id}_srs.md`)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="p-6 bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 rounded-2xl flex items-center justify-between group hover:border-blue-500/40 transition-colors relative overflow-hidden"
+                      >
+                        <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="flex items-center gap-4 relative z-10">
+                          <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                            <FileText size={20} />
                           </div>
-                          <ChevronRight size={14} className="text-white/20 group-hover:translate-x-1 transition-transform" />
-                        </a>
-                      ))}
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 block mb-0.5">Requirements</span>
+                            <span className="text-sm font-bold text-white uppercase tracking-tighter">Download SRS Document</span>
+                          </div>
+                        </div>
+                        <ChevronRight size={18} className="text-blue-500/40 group-hover:translate-x-1 group-hover:text-blue-400 transition-all relative z-10" />
+                      </motion.a>
+
+                      {/* DRD Button */}
+                      <motion.a 
+                        href={agentService.getMarkdownUrl(`${project.project_id}_drd.md`)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="p-6 bg-gradient-to-br from-purple-500/10 to-transparent border border-purple-500/20 rounded-2xl flex items-center justify-between group hover:border-purple-500/40 transition-colors relative overflow-hidden"
+                      >
+                        <div className="absolute inset-0 bg-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="flex items-center gap-4 relative z-10">
+                          <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+                             <Layout size={20} />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-400 block mb-0.5">System Design</span>
+                            <span className="text-sm font-bold text-white uppercase tracking-tighter">Download DRD Document</span>
+                          </div>
+                        </div>
+                        <ChevronRight size={18} className="text-purple-500/40 group-hover:translate-x-1 group-hover:text-purple-400 transition-all relative z-10" />
+                      </motion.a>
                     </div>
                   </div>
                 </motion.div>

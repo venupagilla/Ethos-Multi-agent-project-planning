@@ -41,7 +41,7 @@ def compute_fitness(employee: dict[str, Any], required_skills: list[str]) -> flo
     req_skills_lower = [normalize_skill(s) for s in required_skills]
 
     if not req_skills_lower:
-        skill_score = 60.0
+        skill_score = 70.0
     else:
         matched = sum(1 for s in req_skills_lower if s in emp_skills_lower)
         # Also check partial matches (e.g., "LLM" matches "LLMs")
@@ -51,9 +51,9 @@ def compute_fitness(employee: dict[str, Any], required_skills: list[str]) -> flo
             if s not in emp_skills_lower
             and any(s in emp_s or emp_s in s for emp_s in emp_skills_lower)
         )
-        skill_score = 60.0 * min((matched + 0.5 * partial) / len(req_skills_lower), 1.0)
+        skill_score = 70.0 * min((matched + 0.5 * partial) / len(req_skills_lower), 1.0)
 
-    experience_score = min(employee["experience_years"] / 10.0, 1.0) * 20.0
+    experience_score = min(employee["experience_years"] / 10.0, 1.0) * 30.0
     workload_penalty = (employee["current_workload_percent"] / 100.0) * 20.0
 
     return round(skill_score + experience_score - workload_penalty, 2)

@@ -17,7 +17,7 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -139,6 +139,68 @@ async def employees_endpoint(request: Request):
 
     return JSONResponse(content={"success": True, "count": len(employees)})
 
+
+@app.post("/api/employees/csv")
+async def upload_employees_csv(file: UploadFile = File(...)):
+    """
+    Accept a CSV file upload and import employees into the DB.
+    Expected columns (case-insensitive):
+      employee_id, name, role, department, skills,
+      experience_years, current_workload_percent, email
+    'skills' can be a JSON array string or a comma-separated list within quotes.
+    """
+    import csv
+    import io
+
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=422, detail="Only .csv files are accepted.")
+
+    raw = await file.read()
+    try:
+        content = raw.decode("utf-8-sig")  # handle BOM from Excel-saved CSVs
+    except UnicodeDecodeError:
+        content = raw.decode("latin-1")
+
+    reader = csv.DictReader(io.StringIO(content))
+    # Normalize header names: strip whitespace and lower-case
+    reader.fieldnames = [h.strip().lower() for h in (reader.fieldnames or [])]
+
+    employees = []
+    for i, row in enumerate(reader, start=2):  # row 1 = header
+        try:
+            # Parse skills — could be a JSON array or semicolon/comma separated
+            raw_skills = row.get("skills", "").strip()
+            if raw_skills.startswith("["):
+                import json as _json
+                skills = _json.loads(raw_skills)
+            else:
+                # Support semicolon or pipe delimiters in addition to commas
+                delimiter = ";" if ";" in raw_skills else ("|" if "|" in raw_skills else ",")
+                skills = [s.strip().strip('"').strip("'") for s in raw_skills.split(delimiter) if s.strip()]
+
+            employees.append({
+                "employee_id":              row.get("employee_id", f"EMP{i:03d}").strip(),
+                "name":                     row.get("name", "Unknown").strip(),
+                "role":                     row.get("role", "").strip(),
+                "department":               row.get("department", "").strip(),
+                "skills":                   skills,
+                "experience_years":         float(row.get("experience_years", 0) or 0),
+                "current_workload_percent": float(row.get("current_workload_percent", 0) or 0),
+                "email":                    row.get("email", "").strip() or "tagoresrisai@gmail.com",
+            })
+        except Exception as exc:
+            logger.warning(f"Skipping CSV row {i}: {exc}")
+
+    if not employees:
+        raise HTTPException(status_code=422, detail="No valid employee rows found in CSV.")
+
+    logger.info("POST /api/employees/csv -- importing %d employees from CSV", len(employees))
+    try:
+        database.save_employees(employees)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save employees: {e}")
+
+    return JSONResponse(content={"success": True, "count": len(employees)})
 
 @app.post("/api/run")
 async def run_agent(project: ProjectInput):

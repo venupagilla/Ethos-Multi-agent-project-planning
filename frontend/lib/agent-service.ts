@@ -76,6 +76,22 @@ export const agentService = {
     return res.json();
   },
 
+  /** Upload a raw CSV file — preferred for large datasets (500+ rows). */
+  async uploadEmployeesCSV(file: File): Promise<{ success: boolean; count: number }> {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${BACKEND_URL}/api/employees/csv`, {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({ detail: "Upload failed" }));
+      throw new Error(detail.detail ?? "CSV upload failed");
+    }
+    return res.json();
+  },
+
+
   async getAnalytics(): Promise<Record<string, number>> {
     const res = await fetch(`${BACKEND_URL}/api/analytics`);
     return res.json();
